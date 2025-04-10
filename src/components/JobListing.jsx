@@ -1,4 +1,4 @@
-import React, { use, useContext, useState } from 'react'
+import React, { use, useContext, useEffect, useState } from 'react'
 import { AppContext } from '../context/AppContext'
 import { assets, JobCategories, JobLocations } from '../assets/assets'
 import JobCard from './JobCard'
@@ -6,8 +6,45 @@ import AppDownload from './AppDownload'
 
 const JobListing = () => {
     const {searchFilter, isSearched, setSearchFilter, jobs} = useContext(AppContext)
-    const [showFilter, setShowFilter] = useState(false)
+    const [showFilter, setShowFilter] = useState(true) //false 
     const [currentPage, setCurrentPage] = useState(1)
+    const [selectedCategories, setSelectedCategories] = useState([])
+    const [selectedLocations, setSelectedLocations] = useState([])
+
+    const [filteredJobs, setFilteredJobs] = useState(jobs)
+
+    //?category
+    const handleCategoryChange = (category) => {
+        setSelectedCategories(
+            prev => prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+        )
+    }
+    const handleLocationChange = (location) => {
+        setSelectedLocations(
+            prev => prev.includes(location) ? prev.filter(c => c !== location) : [...prev, location]
+        )
+    }
+
+    useEffect(() => {
+        const matchesCategory = job => selectedCategories.length === 0 || selectedCategories.includes(job.category)
+        const matchesLocation = job => selectedLocations.length === 0 || selectedLocations.includes(job.location)
+        const matchesTitle = job => {
+            if (!searchFilter.title) return true;
+            return job.title.toLowerCase().includes(searchFilter.title.toLowerCase());
+        }
+          
+        const matchesSearchLocation = job => {
+            if (!searchFilter.location) return true;
+            return job.location.toLowerCase().includes(searchFilter.location.toLowerCase());
+        }
+          
+        //reverse: ưu tiên data mới nhất ??
+        const newFilteredJobs = jobs.slice().reverse().filter(
+            job => matchesCategory(job) && matchesLocation(job) && matchesTitle(job) && matchesSearchLocation(job)
+        )
+        setFilteredJobs(newFilteredJobs)
+        setCurrentPage(1) // ???
+    }, [jobs, selectedCategories, selectedLocations, searchFilter])//jobs thay đổi ??
 
   return (
     <div className='container'>
@@ -48,11 +85,14 @@ const JobListing = () => {
                     <h4 className='my-4 fs-3'>Search by Categories</h4>
                     <ul className='list-unstyled'>
                         {
-                            JobLocations.map((location, index) => (
+                            JobCategories.map((category, index) => (
                                 <li key={index}
                                 className='mb-3 d-flex gap-2' >
-                                    <input type="checkbox" style={{transform: 'scale(1.3)'}} name='' id=''/>
-                                    {location}
+                                    <input type="checkbox" style={{transform: 'scale(1.3)'}} 
+                                    name='' id=''
+                                    onChange={() => handleCategoryChange(category)}
+                                    checked={selectedCategories.includes(category)}/>
+                                    {category}
                                 </li>
                             ))
                         }
@@ -63,11 +103,14 @@ const JobListing = () => {
                     <h4 className='my-4 fs-3'>Search by Location</h4>
                     <ul className='list-unstyled'>
                         {
-                            JobCategories.map((category, index) => (
+                            JobLocations.map((location, index) => (
                                 <li key={index}
                                 className='mb-3 d-flex gap-2' >
-                                    <input type="checkbox" style={{transform: 'scale(1.3)'}} name='' id=''/>
-                                    {category}
+                                    <input type="checkbox" style={{transform: 'scale(1.3)'}} 
+                                    name='' id=''
+                                    onChange={() => handleLocationChange(location)}
+                                    checked={selectedLocations.includes(location)}/>
+                                    {location}
                                 </li>
                             ))
                         }
@@ -80,7 +123,7 @@ const JobListing = () => {
                 <p className='fs-4'>Get your desired job from top companies</p>
                 <div className='d-flex gap-3 flex-wrap row'>
                     {
-                        jobs.slice((currentPage-1)*6, currentPage*6).map((job, index) => (
+                        filteredJobs.slice((currentPage-1)*6, currentPage*6).map((job, index) => (
                             <JobCard key={index} job={job}/>
                         ))
                     }
@@ -88,14 +131,14 @@ const JobListing = () => {
             </section>
         </div>
         {
-            jobs.length > 0 && (
+            filteredJobs.length > 0 && (
                 <div className='d-flex justify-content-center gap-3 mt-3'>
                     <a>
                         <button className='border btn rounded' 
                         onClick={() => {if(currentPage > 1 ) setCurrentPage(prev => prev-1)}}><img src={assets.left_arrow_icon} alt="" /></button>
                     </a>
                     {
-                        Array.from({length: Math.ceil(jobs.length/6)}).map((_, index) => (
+                        Array.from({length: Math.ceil(filteredJobs.length/6)}).map((_, index) => (
                             <a>
                                 <button className={`border btn rounded ${currentPage === index + 1 ? 'btn-primary' : ''}`}
                                 onClick={() => {setCurrentPage(index+1)}}>{index+1}</button>
@@ -104,7 +147,7 @@ const JobListing = () => {
                     }
                     <a>
                         <button className='border btn rounded'><img src={assets.right_arrow_icon} alt="" 
-                        onClick={() => {if(currentPage < Math.ceil(jobs.length/6)) setCurrentPage(prev => prev+1)}}/></button>
+                        onClick={() => {if(currentPage < Math.ceil(filteredJobs.length/6)) setCurrentPage(prev => prev+1)}}/></button>
                     </a>
                 </div>
             )
